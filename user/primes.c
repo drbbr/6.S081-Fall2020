@@ -7,44 +7,45 @@ void pipeprocess(int p[])
     int t;
     int n;
     int p_new[2];
-    pipe(p_new);
     if (fork() == 0)
     {
-
-        if (read(p[0], &t, sizeof(int)) != 0)
-            printf("prime %d\n", t);
-        else
+        close(p[1]);
+        if (read(p[0], &t, sizeof(int)) == 0)
             exit(0);
+        printf("prime %d\n", t);
+        pipe(p_new);
+        pipeprocess(p_new);
         while (read(p[0], &n, sizeof(int)) != 0)
         {
+            //printf("read %d\n",n);
             if (n % t)
             {
+                //printf("write %d\n",n);
                 write(p_new[1], &n, sizeof(int));
             }
-            if (n == NUM)
+            if (n == NUM||n==t)
                 break;
         }
         close(p[0]);
-        close(p_new[1]);
-        pipeprocess(p_new);
+        close(p_new[1]);       
         wait(0);
         exit(0);
     }
-    close(p[1]);
-    wait(0);
 }
-
 int main(int argc, char *argv[])
 {
     //primes version 2.0
     int i;
     int p[2];
     pipe(p);
+    pipeprocess(p);
     for (i = 2; i <= NUM; i++)
     {
+        
         write(p[1], &i, sizeof(int));
     }
-    pipeprocess(p);
+    close(p[1]);
+    wait(0);
     exit(0);
     /*
     ** primes version 1.0
