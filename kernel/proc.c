@@ -294,7 +294,7 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
-
+    np->tid=p->tid;
   release(&np->lock);
 
   return pid;
@@ -692,4 +692,18 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+
+// count the proc nums
+int proccount(void)
+{
+    struct proc *p;
+    int count=0;
+    for(p = proc; p < &proc[NPROC]; p++){
+    if(p->state == UNUSED)
+      continue;
+        ++count;
+    }
+    return count;
 }
