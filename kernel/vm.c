@@ -80,7 +80,10 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
       if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
+      {
+      //x  printf("zzz");
         return 0;
+      }
       memset(pagetable, 0, PGSIZE);
       *pte = PA2PTE(pagetable) | PTE_V;
     }
@@ -121,6 +124,13 @@ kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
     panic("kvmmap");
 }
 
+void
+k_kvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+  if(mappages(pagetable, va, sz, pa, perm) != 0)
+    panic("k_kvmmap");
+}
+
 // translate a kernel virtual address to
 // a physical address. only needed for
 // addresses on the stack.
@@ -154,8 +164,10 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
-    if((pte = walk(pagetable, a, 1)) == 0)
+    if((pte = walk(pagetable, a, 1)) == 0){
+     // printf("aaaaaaaa");
       return -1;
+    }
     if(*pte & PTE_V)
       panic("remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
@@ -298,6 +310,26 @@ uvmfree(pagetable_t pagetable, uint64 sz)
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
   freewalk(pagetable);
 }
+
+void 
+rkvmfree(pagetable_t pagetable,int r)
+{
+  for(int i = 0; i < 512; i++)
+    {
+      pte_t pte = pagetable[i];
+      if((pte & PTE_V))
+      {
+        if(r!=3)
+        {
+          uint64 child = PTE2PA(pte);
+          rkvmfree((pagetable_t)child,r+1);
+        }
+        pagetable[i]=0;
+      }
+    }
+  kfree(pagetable);
+}
+
 
 // Given a parent process's page table, copy
 // its memory into a child's page table.

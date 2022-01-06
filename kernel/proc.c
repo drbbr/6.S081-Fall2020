@@ -19,7 +19,9 @@ extern void forkret(void);
 static void wakeup1(struct proc *chan);
 static void freeproc(struct proc *p);
 
+extern char etext[];  // kernel.ld sets this to end of kernel code.
 extern char trampoline[]; // trampoline.S
+extern pagetable_t kernel_pagetable;
 
 // initialize the proc table at boot time.
 void
@@ -127,6 +129,13 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->k_pagetable = proc_k_pagetable(p);
+  if(p->k_pagetable == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
   return p;
 }
 
@@ -142,6 +151,9 @@ freeproc(struct proc *p)
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
+  if(p->k_pagetable)
+    proc_freek_pagetable(p->k_pagetable, p->sz);
+  p->k_pagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -193,6 +205,60 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
+}
+
+pagetable_t
+proc_k_pagetable(struct proc *p)
+{
+  p->k_pagetable = (pagetable_t) kalloc();
+  if(p->k_pagetable == 0)
+    return 0;
+  memset(p->k_pagetable, 0, PGSIZE);
+
+  // uart registers
+  k_kvmmap(p->k_pagetable, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  k_kvmmap(p->k_pagetable, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+
+  // CLINT
+  k_kvmmap(p->k_pagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+
+  // PLIC
+  k_kvmmap(p->k_pagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  k_kvmmap(p->k_pagetable, KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  k_kvmmap(p->k_pagetable, (uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  k_kvmmap(p->k_pagetable, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  
+
+  // map the trapframe just below TRAMPOLINE, for trampoline.S.
+  if(mappages(p->k_pagetable, TRAPFRAME, PGSIZE,
+              (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
+    uvmunmap(p->k_pagetable, TRAMPOLINE, 1, 0);
+    uvmfree(p->k_pagetable, 0);
+    return 0;
+  }
+
+  if(mappages(p->k_pagetable, (uint64)p->kstack, PGSIZE, 
+              kvmpa(p->kstack), PTE_R | PTE_W)<0){
+    
+    return 0;
+  }
+
+  return p->k_pagetable;
+}
+
+void
+proc_freek_pagetable(pagetable_t pagetable, uint64 sz)
+{
+  rkvmfree(pagetable,1);
 }
 
 // a user program that calls exec("/init")
@@ -471,6 +537,8 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        w_satp(MAKE_SATP(p->k_pagetable));
+        sfence_vma();
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -485,6 +553,8 @@ scheduler(void)
     }
 #if !defined (LAB_FS)
     if(found == 0) {
+      w_satp(MAKE_SATP(kernel_pagetable));
+      sfence_vma();
       intr_on();
       asm volatile("wfi");
     }

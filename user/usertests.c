@@ -954,6 +954,7 @@ reparent2(char *s)
 {
   for(int i = 0; i < 800; i++){
     int pid1 = fork();
+    //printf("%d\n",i);
     if(pid1 < 0){
       printf("fork failed\n");
       exit(1);
