@@ -293,7 +293,7 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-
+  user2kernel(p->pagetable,p->k_pagetable,0,PGSIZE);
   p->state = RUNNABLE;
 
   release(&p->lock);
@@ -308,11 +308,14 @@ growproc(int n)
   struct proc *p = myproc();
 
   sz = p->sz;
+  if(sz + n >= PLIC)  return -1;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    user2kernel(p->pagetable,p->k_pagetable,p->sz,sz);
   } else if(n < 0){
+    ukvmdealloc(p->k_pagetable, sz, sz + n);
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
@@ -360,6 +363,8 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
+
+  user2kernel(np->pagetable,np->k_pagetable,0,np->sz);
 
   release(&np->lock);
 

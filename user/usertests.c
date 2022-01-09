@@ -2509,7 +2509,6 @@ execout(char *s)
           break;
         *(char*)(a + 4096 - 1) = 1;
       }
-
       // free a few pages, in order to let exec() make some
       // progress.
       for(int i = 0; i < avail; i++)
