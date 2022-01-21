@@ -4,7 +4,7 @@
 #include "user/user.h"
 
 int g(int x) {
-  return x+3;
+  return x + 3;
 }
 
 int f(int x) {
@@ -12,6 +12,6 @@ int f(int x) {
 }
 
 void main(void) {
-  printf("%d %d\n", f(8)+1, 13);
+  printf("%d %d\n", f(8) + 1, 13);
   exit(0);
 }
