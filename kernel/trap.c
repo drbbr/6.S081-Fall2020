@@ -77,8 +77,49 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2 && p->booming == 0)
+  {
+    ++p->tick;
+    if(p->tick==p->period && p->period!=0)
+    {
+      p->booming=1;
+      p->tick=0;
+      p->bktf.epc = p->trapframe->epc;
+      p->bktf.ra = p->trapframe->ra;
+      p->bktf.sp = p->trapframe->sp;
+      p->bktf.gp = p->trapframe->gp;
+      p->bktf.tp = p->trapframe->tp;
+      p->bktf.t0 = p->trapframe->t0;
+      p->bktf.t1 = p->trapframe->t1;
+      p->bktf.t2 = p->trapframe->t2;
+      p->bktf.t3 = p->trapframe->t3;
+      p->bktf.t4 = p->trapframe->t4;
+      p->bktf.t5 = p->trapframe->t5;
+      p->bktf.t6 = p->trapframe->t6;
+      p->bktf.s0 = p->trapframe->s0;
+      p->bktf.s1 = p->trapframe->s1;
+      p->bktf.s2 = p->trapframe->s2;
+      p->bktf.s3 = p->trapframe->s3;
+      p->bktf.s4 = p->trapframe->s4;
+      p->bktf.s5 = p->trapframe->s5;
+      p->bktf.s6 = p->trapframe->s6;
+      p->bktf.s7 = p->trapframe->s7;
+      p->bktf.s8 = p->trapframe->s8;
+      p->bktf.s9 = p->trapframe->s9;
+      p->bktf.s10 = p->trapframe->s10;
+      p->bktf.s11 = p->trapframe->s11;
+      p->bktf.a0 = p->trapframe->a0;
+      p->bktf.a1 = p->trapframe->a1;
+      p->bktf.a2 = p->trapframe->a2;
+      p->bktf.a3 = p->trapframe->a3;
+      p->bktf.a4 = p->trapframe->a4;
+      p->bktf.a5 = p->trapframe->a5;
+      p->bktf.a6 = p->trapframe->a6;
+      p->bktf.a7 = p->trapframe->a7;
+      p->trapframe->epc = (uint64)p->handler;
+    }
     yield();
+  }
 
   usertrapret();
 }

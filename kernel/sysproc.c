@@ -96,3 +96,58 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_sigalarm(void)
+{
+  int ticks;
+  uint64 ptr;
+  if(argint(0, &ticks) < 0)
+    return -1;
+  if(argaddr(1, &ptr) < 0)
+    return -1;
+  myproc()->handler = (void*)ptr;
+  myproc()->period = ticks;
+
+  return ticks;
+}
+
+uint64 
+sys_sigreturn(void)
+{
+  struct proc *p=myproc();
+  p->trapframe->epc = p->bktf.epc;
+  p->trapframe->ra = p->bktf.ra;
+  p->trapframe->sp = p->bktf.sp;
+  p->trapframe->gp = p->bktf.gp;
+  p->trapframe->tp = p->bktf.tp;
+  p->trapframe->t0 = p->bktf.t0;
+  p->trapframe->t1 = p->bktf.t1;
+  p->trapframe->t2 = p->bktf.t2;
+  p->trapframe->t3 = p->bktf.t3;
+  p->trapframe->t4 = p->bktf.t4;
+  p->trapframe->t5 = p->bktf.t5;
+  p->trapframe->t6 = p->bktf.t6;
+  p->trapframe->s0 = p->bktf.s0;
+  p->trapframe->s1 = p->bktf.s1;
+  p->trapframe->s2 = p->bktf.s2;
+  p->trapframe->s3 = p->bktf.s3;
+  p->trapframe->s4 = p->bktf.s4;
+  p->trapframe->s5 = p->bktf.s5;
+  p->trapframe->s6 = p->bktf.s6;
+  p->trapframe->s7 = p->bktf.s7;
+  p->trapframe->s8 = p->bktf.s8;
+  p->trapframe->s9 = p->bktf.s9;
+  p->trapframe->s10 = p->bktf.s10;
+  p->trapframe->s11 = p->bktf.s11;
+  p->trapframe->a0 = p->bktf.a0;
+  p->trapframe->a1 = p->bktf.a1;
+  p->trapframe->a2 = p->bktf.a2;
+  p->trapframe->a3 = p->bktf.a3;
+  p->trapframe->a4 = p->bktf.a4;
+  p->trapframe->a5 = p->bktf.a5;
+  p->trapframe->a6 = p->bktf.a6;
+  p->trapframe->a7 = p->bktf.a7;
+  p->booming=0; 
+  return 0;
+}

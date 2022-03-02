@@ -143,7 +143,7 @@ void backtrace()
   while(fp > pdown && fp < pup)
   {
     uint64 retadd = *(uint64*)(fp - 8);
-    printf("%p\n",retadd + 8);
+    printf("%p\n",retadd);
     fp = *(uint64*)(fp - 16);
   }
 }
