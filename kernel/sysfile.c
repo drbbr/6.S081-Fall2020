@@ -75,6 +75,15 @@ sys_read(void)
 
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
+  if(p > myproc()->sz)  return -1;
+  for(uint64 i = PGROUNDDOWN(p); i < p + n; i += PGSIZE){
+    if(walkaddr(myproc()->pagetable,i) == 0){
+        char *mem = kalloc();
+        memset(mem, 0, PGSIZE);
+        if(mappages(myproc()->pagetable, p, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0)
+          exit(-1);
+    }
+  }
   return fileread(f, p, n);
 }
 
@@ -87,7 +96,15 @@ sys_write(void)
 
   if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
-
+  if(p > myproc()->sz)  return -1;
+  for(uint64 i = PGROUNDDOWN(p); i < p + n; i += PGSIZE){
+    if(walkaddr(myproc()->pagetable,i) == 0){
+        char *mem = kalloc();
+        memset(mem, 0, PGSIZE);
+        if(mappages(myproc()->pagetable, p, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0)
+          exit(-1);
+    }
+  }
   return filewrite(f, p, n);
 }
 
@@ -474,6 +491,14 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  if(fdarray > myproc()->sz)  return -1;
+  if(walkaddr(myproc()->pagetable,PGROUNDDOWN(fdarray)) == 0){
+    char *mem = kalloc();
+    memset(mem, 0, PGSIZE);
+    if(mappages(myproc()->pagetable, PGROUNDDOWN(fdarray), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0)
+      exit(-1);
+  }
+  
   if(copyout(p->pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
      copyout(p->pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
     p->ofile[fd0] = 0;
